@@ -39,21 +39,30 @@ const els = {
   error: document.getElementById("error"),
   start: document.getElementById("start-btn"),
   stop: document.getElementById("stop-btn"),
+  change: document.getElementById("change-btn"),
   display: document.getElementById("chapter-display"),
   title: document.getElementById("chapter-title"),
   verses: document.getElementById("verses"),
   status: document.getElementById("status"),
   voiceNote: document.getElementById("voice-note"),
+  floatingControls: document.getElementById("floating-controls"),
   floatingStop: document.getElementById("floating-stop-btn"),
+  floatingChange: document.getElementById("floating-change-btn"),
+  floatingBack: document.getElementById("floating-back-btn"),
 };
 
 const synth = window.speechSynthesis || null;
 
 const AUDIO_CACHE_LIMIT = 120;
-const SPEECH_CHUNK_WORDS = 4;
+const SPEECH_CHUNK_WORDS = 3;
+// If a 3-word cut would leave a single leftover word, attach it to the previous
+// chunk so the last piece is 4 words instead of 3 + 1.
+const LAST_CHUNK_IF_ONE_LEFT = 4;
 const CANTILLATION = /[\u0591-\u05AF\u05BD\u05BF\u05C0\u05C3-\u05C7]/g;
 const DIVINE_NAME = /י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה/g;
-const DIVINE_NAME_READING = "אדוני";
+// Spelled with nikud so the voice says "amonay" and not "emuni", which is how
+// the unvocalized word אמוני is read.
+const DIVINE_NAME_READING = "אֲמוֹנַי";
 const audioCache = new Map();
 
 let tehilim = null;
@@ -65,9 +74,16 @@ let currentAudio = null;
 let serverSpeech = null;
 let playing = false;
 let cancelled = false;
+let paused = false;
 let waitTimer = null;
 let waitResolve = null;
+let resumeResolve = null;
+let speechDone = null;
 let currentChapter = null;
+let pendingRestart = false;
+let currentSegments = [];
+let segmentIndex = 0;
+let jumpRequested = false;
 
 function hebrewLetters(n) {
   if (n === 15) return "טו";
@@ -123,8 +139,40 @@ function setVoiceNote(message) {
   if (els.voiceNote) els.voiceNote.textContent = message || "";
 }
 
-function showFloatingStop(visible) {
-  if (els.floatingStop) els.floatingStop.classList.toggle("hidden", !visible);
+function showFloatingControls(visible) {
+  if (els.floatingControls) els.floatingControls.classList.toggle("hidden", !visible);
+}
+
+function setPauseResumeLabel(isPaused) {
+  const label = isPaused ? "המשך" : "עצור";
+  const floating = isPaused ? "▶ המשך" : "■ עצור";
+  if (els.stop) els.stop.textContent = label;
+  if (els.floatingStop) els.floatingStop.textContent = floating;
+}
+
+function finishSpeech() {
+  if (!speechDone) return;
+  const done = speechDone;
+  speechDone = null;
+  done();
+}
+
+function haltPlayback() {
+  if (currentAudio) {
+    currentAudio.onended = null;
+    currentAudio.onerror = null;
+    currentAudio.pause();
+    currentAudio = null;
+  }
+  if (synth) synth.cancel();
+  finishSpeech();
+}
+
+function waitWhilePaused() {
+  if (!paused) return Promise.resolve();
+  return new Promise((resolve) => {
+    resumeResolve = resolve;
+  });
 }
 
 // Chrome/Edge populate the voice list asynchronously and do not always fire
@@ -250,8 +298,15 @@ function splitForSpeech(text) {
   if (!words.length) return [];
 
   const chunks = [];
-  for (let i = 0; i < words.length; i += SPEECH_CHUNK_WORDS) {
-    chunks.push(words.slice(i, i + SPEECH_CHUNK_WORDS).join(" "));
+  let i = 0;
+  while (i < words.length) {
+    const remaining = words.length - i;
+    const take =
+      remaining === LAST_CHUNK_IF_ONE_LEFT
+        ? LAST_CHUNK_IF_ONE_LEFT
+        : Math.min(SPEECH_CHUNK_WORDS, remaining);
+    chunks.push(words.slice(i, i + take).join(" "));
+    i += take;
   }
   return chunks;
 }
@@ -308,15 +363,21 @@ function playAudio(url) {
   return new Promise((resolve, reject) => {
     const audio = new Audio(url);
     currentAudio = audio;
+    speechDone = resolve;
     audio.onended = () => {
       currentAudio = null;
-      resolve();
+      finishSpeech();
     };
     audio.onerror = () => {
       currentAudio = null;
+      speechDone = null;
       reject(new Error("audio playback failed"));
     };
-    audio.play().catch(reject);
+    audio.play().catch((error) => {
+      currentAudio = null;
+      speechDone = null;
+      reject(error);
+    });
   });
 }
 
@@ -368,7 +429,7 @@ function speakWithBrowser(content) {
     // If the queue was left in a broken state by a previous cancel, speak()
     // does nothing at all. Retry once before giving up.
     const watchdog = setTimeout(() => {
-      if (done || cancelled || synth.speaking || synth.pending) return;
+      if (done || cancelled || paused || synth.speaking || synth.pending) return;
       synth.cancel();
       synth.speak(utterance);
     }, 400);
@@ -398,7 +459,7 @@ async function speak(text) {
     }
   }
 
-  if (cancelled) return performance.now() - started;
+  if (cancelled || paused) return performance.now() - started;
   await speakWithBrowser(content);
   return performance.now() - started;
 }
@@ -425,7 +486,7 @@ function highlightVerse(index) {
 }
 
 function showChapterFromInput() {
-  if (playing) return;
+  if (playing && !cancelled) return;
   const result = parseChapter(els.input.value);
   if (result.error) {
     setError(result.error);
@@ -440,67 +501,176 @@ function showChapterFromInput() {
 
 async function readSegments(segments) {
   let shownVerse = -1;
-  for (let i = 0; i < segments.length; i += 1) {
+
+  while (segmentIndex < segments.length) {
+    await waitWhilePaused();
     if (cancelled) return;
-    const segment = segments[i];
+
+    const segment = segments[segmentIndex];
     if (segment.verseIndex !== shownVerse) {
       shownVerse = segment.verseIndex;
       highlightVerse(shownVerse);
     }
-    if (segments[i + 1]) prefetchAudio(segments[i + 1].text);
+    if (segments[segmentIndex + 1]) prefetchAudio(segments[segmentIndex + 1].text);
+
+    jumpRequested = false;
     const duration = await speak(segment.text);
+    if (jumpRequested) {
+      shownVerse = -1;
+      continue;
+    }
+    // A pause re-reads the same piece so nothing is skipped mid-sentence.
+    if (paused) continue;
     if (cancelled) return;
+
     await wait(duration);
+    if (jumpRequested) {
+      shownVerse = -1;
+      continue;
+    }
+    if (paused) {
+      await waitWhilePaused();
+      if (jumpRequested) {
+        shownVerse = -1;
+        continue;
+      }
+    }
+    if (cancelled) return;
+
+    segmentIndex += 1;
+  }
+}
+
+// Reads a chapter plus the gap before the next one, re-reading when the user
+// jumps back into the chapter during that gap.
+async function readChapterAndGap(segments, chapter) {
+  while (!cancelled) {
+    await readSegments(segments);
+    if (cancelled) return;
+    els.status.textContent = "מעבר לפרק הבא...";
+    highlightVerse(-1);
+    await wait(4000);
+    if (paused) await waitWhilePaused();
+    if (cancelled) return;
+    if (!jumpRequested) return;
+    els.status.textContent = `מקריא פרק ${chapterLabel(chapter)}`;
   }
 }
 
 async function readLoop(startChapter) {
   playing = true;
   cancelled = false;
+  paused = false;
   els.start.disabled = true;
   els.stop.disabled = false;
+  if (els.change) els.change.disabled = false;
   els.input.disabled = true;
-  showFloatingStop(true);
+  setPauseResumeLabel(false);
+  showFloatingControls(true);
   setError("");
   if (synth) synth.cancel();
   await refreshVoice();
 
   let chapter = startChapter;
   while (!cancelled) {
+    await waitWhilePaused();
+    if (cancelled) break;
     renderChapter(chapter);
     els.status.textContent = `מקריא פרק ${chapterLabel(chapter)}`;
     const verses = tehilim[String(chapter)] || [];
     const segments = buildChapterSegments(verses);
+    currentSegments = segments;
+    segmentIndex = 0;
     if (segments.length) prefetchAudio(segments[0].text);
     await speak(`פרק ${hebrewLetters(chapter)}`);
+    if (paused) {
+      await waitWhilePaused();
+      continue;
+    }
     if (cancelled) break;
 
-    await readSegments(segments);
+    await readChapterAndGap(segments, chapter);
 
-    if (cancelled) break;
-    els.status.textContent = "מעבר לפרק הבא...";
-    highlightVerse(-1);
-    await wait(4000);
     if (cancelled) break;
     chapter = chapter === 150 ? 1 : chapter + 1;
   }
 
   playing = false;
+  paused = false;
   els.input.disabled = false;
   els.stop.disabled = true;
-  showFloatingStop(false);
+  if (els.change) els.change.disabled = true;
+  setPauseResumeLabel(false);
+  showFloatingControls(false);
   els.start.disabled = !currentChapter;
-  els.status.textContent = cancelled ? "ההקראה נעצרה" : "";
+  els.status.textContent = cancelled ? "בחרו פרק ולחצו התחל להקריא" : "";
+  if (pendingRestart && currentChapter) {
+    pendingRestart = false;
+    readLoop(currentChapter);
+  }
 }
 
-function stopReading() {
-  cancelled = true;
+function pauseReading() {
+  if (!playing || paused) return;
+  paused = true;
   clearWait();
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
+  haltPlayback();
+  setPauseResumeLabel(true);
+  els.status.textContent = "ההקראה נעצרה — לחצו המשך";
+}
+
+function resumeReading() {
+  if (!playing || !paused) return;
+  paused = false;
+  setPauseResumeLabel(false);
+  els.status.textContent = `מקריא פרק ${chapterLabel(currentChapter)}`;
+  if (resumeResolve) {
+    const resolve = resumeResolve;
+    resumeResolve = null;
+    resolve();
   }
-  if (synth) synth.cancel();
+}
+
+function togglePauseResume() {
+  if (!playing) return;
+  if (paused) resumeReading();
+  else pauseReading();
+}
+
+function goBackVerse() {
+  if (!playing || !currentSegments.length) return;
+
+  const safeIndex = Math.min(segmentIndex, currentSegments.length - 1);
+  const targetVerse = Math.max(0, currentSegments[safeIndex].verseIndex - 1);
+  const target = currentSegments.findIndex((s) => s.verseIndex === targetVerse);
+  if (target === -1) return;
+
+  segmentIndex = target;
+  jumpRequested = true;
+  clearWait();
+  haltPlayback();
+  // Pressing back means "read it now", so a paused session starts again.
+  if (paused) resumeReading();
+}
+
+function changeChapter() {
+  if (!playing) return;
+  pendingRestart = false;
+  cancelled = true;
+  paused = false;
+  clearWait();
+  haltPlayback();
+  if (resumeResolve) {
+    const resolve = resumeResolve;
+    resumeResolve = null;
+    resolve();
+  }
+  setPauseResumeLabel(false);
+  els.input.disabled = false;
+  els.input.focus();
+  els.input.select();
+  els.input.scrollIntoView({ behavior: "smooth", block: "center" });
+  els.status.textContent = "הקלידו פרק חדש ולחצו התחל להקריא";
 }
 
 async function loadTehilim() {
@@ -517,11 +687,19 @@ async function loadTehilim() {
 
 els.input.addEventListener("input", showChapterFromInput);
 els.start.addEventListener("click", () => {
-  if (!currentChapter || playing) return;
+  if (!currentChapter) return;
+  if (playing) {
+    if (!cancelled) return;
+    pendingRestart = true;
+    return;
+  }
   readLoop(currentChapter);
 });
-els.stop.addEventListener("click", stopReading);
-if (els.floatingStop) els.floatingStop.addEventListener("click", stopReading);
+els.stop.addEventListener("click", togglePauseResume);
+if (els.floatingStop) els.floatingStop.addEventListener("click", togglePauseResume);
+if (els.change) els.change.addEventListener("click", changeChapter);
+if (els.floatingChange) els.floatingChange.addEventListener("click", changeChapter);
+if (els.floatingBack) els.floatingBack.addEventListener("click", goBackVerse);
 
 if (synth) {
   synth.addEventListener("voiceschanged", refreshVoiceLater);

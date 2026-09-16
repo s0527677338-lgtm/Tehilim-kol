@@ -28,6 +28,7 @@
         <div class="actions">
           <button id="start-btn" type="button" disabled>התחל להקריא</button>
           <button id="stop-btn" class="secondary" type="button" disabled>עצור</button>
+          <button id="change-btn" class="secondary" type="button" disabled>החלף פרק</button>
         </div>
         <p id="voice-note" class="note" aria-live="polite"></p>
       </section>
@@ -39,9 +40,11 @@
       </section>
     </main>
 
-    <button id="floating-stop-btn" class="floating-stop hidden" type="button">
-      ■ עצור
-    </button>
+    <div id="floating-controls" class="floating-controls hidden">
+      <button id="floating-stop-btn" class="floating-stop" type="button">■ עצור</button>
+      <button id="floating-back-btn" class="floating-back" type="button">◀ חזור פסוק אחורה</button>
+      <button id="floating-change-btn" class="floating-change" type="button">החלף פרק</button>
+    </div>
 
     <script type="application/json" id="tehilim-data">
 {

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>בדיקת הגייה</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        padding: 14px 0;
+        border-bottom: 1px solid rgba(27, 94, 158, 0.18);
+      }
+      .row .word {
+        font-size: 28px;
+        min-width: 160px;
+      }
+      .row .tag {
+        color: var(--ink-soft);
+        font-size: 15px;
+        min-width: 90px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>בדיקת הגייה</h1>
+        <p class="subtitle">לחצו על כל שורה ובחרו מה נשמע נכון</p>
+      </header>
+
+      <section class="card">
+        <div id="rows"></div>
+        <p class="note">
+          הדף הזה זמני ונועד רק לבחירת ההגייה. אחרי שתבחרו אפשר למחוק אותו.
+        </p>
+      </section>
+    </main>
+
+    <script>
+      const candidates = [
+        ["אֲמוֹנַי", "מנוקד"],
+        ["אמונאי", "בלי ניקוד"],
+        ["אמוניי", "שני יודים"],
+        ["אֲמוֹנָי", "קמץ"],
+        ["אמוני", "הקודם"],
+        ["אֲדֹנָי", "להשוואה"],
+      ];
+
+      const rows = document.getElementById("rows");
+
+      for (const [word, tag] of candidates) {
+        const row = document.createElement("div");
+        row.className = "row";
+
+        const wordEl = document.createElement("span");
+        wordEl.className = "word";
+        wordEl.textContent = word;
+
+        const tagEl = document.createElement("span");
+        tagEl.className = "tag";
+        tagEl.textContent = tag;
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "▶ השמע";
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          btn.textContent = "טוען...";
+          try {
+            const response = await fetch("/api/speech", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: word }),
+            });
+            if (!response.ok) throw new Error("speech failed");
+            const url = URL.createObjectURL(await response.blob());
+            await new Audio(url).play();
+            btn.textContent = "▶ השמע שוב";
+          } catch (error) {
+            btn.textContent = "שגיאה";
+          } finally {
+            btn.disabled = false;
+          }
+        });
+
+        row.append(wordEl, tagEl, btn);
+        rows.appendChild(row);
+      }
+    </script>
+  </body>
+</html>
