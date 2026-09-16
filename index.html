@@ -2,8 +2,16 @@
 <html lang="he" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1b5e9e" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="תהילים" />
     <title>תהילים</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -11,7 +19,7 @@
       <header>
         <div class="ornament">✦ ✦ ✦</div>
         <h1>תהילים</h1>
-        <p class="subtitle">הקראה מקומית, בלי שרת ובלי טוקן</p>
+        <p class="subtitle">הקראת תהילים בעברית — אפשר להתקין למסך הבית בטלפון</p>
       </header>
 
       <section class="card">
@@ -31,6 +39,8 @@
           <button id="change-btn" class="secondary" type="button" disabled>החלף פרק</button>
         </div>
         <p id="voice-note" class="note" aria-live="polite"></p>
+        <p id="install-note" class="note hidden"></p>
+        <button id="install-btn" class="secondary hidden" type="button">הוסף למסך הבית</button>
       </section>
 
       <section id="chapter-display" class="card hidden">

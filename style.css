@@ -216,6 +216,16 @@ button.secondary {
   display: none;
 }
 
+#install-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+}
+
+#install-btn.hidden {
+  display: none;
+}
+
 .hidden {
   display: none;
 }

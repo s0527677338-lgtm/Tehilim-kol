@@ -45,6 +45,8 @@ const els = {
   verses: document.getElementById("verses"),
   status: document.getElementById("status"),
   voiceNote: document.getElementById("voice-note"),
+  installNote: document.getElementById("install-note"),
+  installBtn: document.getElementById("install-btn"),
   floatingControls: document.getElementById("floating-controls"),
   floatingStop: document.getElementById("floating-stop-btn"),
   floatingChange: document.getElementById("floating-change-btn"),
@@ -714,3 +716,50 @@ loadTehilim()
   .catch(() => {
     setError("לא ניתן לטעון את ספר תהילים");
   });
+
+function isStandaloneApp() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true
+  );
+}
+
+function setupInstallPrompt() {
+  if (!els.installBtn || !els.installNote) return;
+  if (isStandaloneApp()) return;
+
+  let deferredPrompt = null;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  if (ios) {
+    els.installNote.classList.remove("hidden");
+    els.installNote.textContent =
+      "באייפון: לחצו על שיתוף (הריבוע עם החץ) ואז \"הוסף למסך הבית\".";
+    return;
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredPrompt = event;
+    els.installBtn.classList.remove("hidden");
+    els.installNote.classList.remove("hidden");
+    els.installNote.textContent = "אפשר להתקין את תהילים כאייקון במסך הבית.";
+  });
+
+  els.installBtn.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    els.installBtn.classList.add("hidden");
+    els.installNote.classList.add("hidden");
+  });
+}
+
+setupInstallPrompt();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}

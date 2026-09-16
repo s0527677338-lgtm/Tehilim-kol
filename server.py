@@ -1,3 +1,4 @@
+import mimetypes
 import hashlib
 import io
 import os
@@ -5,6 +6,8 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_file, send_from_directory
 from gtts import gTTS
+
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_DIR = BASE_DIR / "audio_cache"
