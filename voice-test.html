@@ -3,93 +3,215 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>בדיקת הגייה</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>בחירת קול הקראה</title>
     <style>
+      body {
+        font-family: "David", "Times New Roman", serif;
+        background: #dbecfb;
+        color: #10294d;
+        padding: 24px;
+        max-width: 680px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 28px;
+        margin-bottom: 6px;
+      }
+      h2 {
+        font-size: 21px;
+        margin: 26px 0 10px;
+      }
+      p {
+        line-height: 1.6;
+      }
       .row {
         display: flex;
         align-items: center;
-        gap: 14px;
-        flex-wrap: wrap;
-        padding: 14px 0;
-        border-bottom: 1px solid rgba(27, 94, 158, 0.18);
+        gap: 12px;
+        background: #fff;
+        border: 1px solid rgba(27, 94, 158, 0.3);
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
       }
-      .row .word {
-        font-size: 28px;
-        min-width: 160px;
+      .name {
+        font-size: 20px;
+        min-width: 130px;
       }
-      .row .tag {
-        color: var(--ink-soft);
+      .tag {
+        color: #3f5f85;
         font-size: 15px;
-        min-width: 90px;
+        flex: 1;
+      }
+      button {
+        font: inherit;
+        font-size: 18px;
+        padding: 8px 18px;
+        border: 0;
+        border-radius: 999px;
+        background: #1b5e9e;
+        color: #f4fbff;
+        cursor: pointer;
+      }
+      #note {
+        min-height: 26px;
+        color: #9b2c2c;
+      }
+      .sample {
+        font-size: 22px;
+        background: #fff;
+        border-radius: 12px;
+        padding: 12px 14px;
+        border: 1px solid rgba(27, 94, 158, 0.3);
+      }
+      input {
+        font: inherit;
+        font-size: 22px;
+        flex: 1;
+        padding: 6px 10px;
+        border: 1px solid rgba(27, 94, 158, 0.4);
+        border-radius: 8px;
+        text-align: right;
       }
     </style>
   </head>
   <body>
-    <main class="page">
-      <header>
-        <h1>בדיקת הגייה</h1>
-        <p class="subtitle">לחצו על כל שורה ובחרו מה נשמע נכון</p>
-      </header>
+    <h1>בחירת קול הקראה</h1>
+    <p id="note" aria-live="polite"></p>
+    <p class="sample" id="sample"></p>
 
-      <section class="card">
-        <div id="rows"></div>
-        <p class="note">
-          הדף הזה זמני ונועד רק לבחירת ההגייה. אחרי שתבחרו אפשר למחוק אותו.
-        </p>
-      </section>
-    </main>
+    <h2>קולות גבריים בעברית</h2>
+    <p>
+      אַברי הוא הקול הגברי היחיד שמאומן על עברית, ולכן הוא המדויק ביותר. אפשר
+      לשנות את אופיו על ידי הנמכה או הגבהה של גובה הצליל.
+    </p>
+    <div id="avri"></div>
+
+    <h2>קולות גבריים נוספים</h2>
+    <p>
+      הקולות האלה מאומנים על שפות אחרות אך יודעים לקרוא גם עברית. הם נשמעים
+      שונה מאַברי, ולפעמים עם מבטא. כדאי להאזין ולבחור.
+    </p>
+    <div id="others"></div>
+
+    <h2>בדיקת מילה</h2>
+    <p>
+      הקולות אומנו על עברית ללא ניקוד, ולכן הם מנחשים את התנועות לפי אותיות
+      המילה ולרוב מתעלמים מהניקוד — ולכן "הַלְלוּ" יוצא "הללו" ולא "הללוּ" עם
+      תנועת e. הדרך לתקן היא לכתוב את המילה באיות אחר שנשמע נכון. אפשר להקליד
+      כאן כל מילה ולשמוע אותה, ולבחור את האיות המתאים.
+    </p>
+    <div class="row">
+      <input id="word" value="הַלְלוּ" aria-label="מילה לבדיקה" />
+      <button id="word-play" type="button">השמע</button>
+    </div>
+    <div id="variants"></div>
 
     <script>
-      const candidates = [
-        ["אֲמוֹנַי", "מנוקד"],
-        ["אמונאי", "בלי ניקוד"],
-        ["אמוניי", "שני יודים"],
-        ["אֲמוֹנָי", "קמץ"],
-        ["אמוני", "הקודם"],
-        ["אֲדֹנָי", "להשוואה"],
+      const SAMPLE = "כְּהִנְדֹּף עָשָׁן תִּנְדֹּף כְּהִמֵּס דּוֹנַג מִפְּנֵי אֵשׁ יֹאבְדוּ רְשָׁעִים מִפְּנֵי אֱלֹהִים";
+      // The same two rewrites the app applies, so the trial matches the reader:
+      // the dagesh is kept only in ב, כ, פ and in the shuruk ו, and a word-final
+      // חַ is respelled אַך.
+      const DAGESH_KEEPERS = /[בכךפףו]/;
+      const LETTER_WITH_DAGESH = /([\u05D0-\u05EA])([\u0591-\u05BB\u05BD-\u05C7]*)\u05BC/g;
+      const CLEAN_SAMPLE = SAMPLE.replace(LETTER_WITH_DAGESH, (match, letter, marks) =>
+        DAGESH_KEEPERS.test(letter) ? match : letter + marks
+      );
+      const SAMPLE_SPEECH = CLEAN_SAMPLE.replace(/חַ(?=$|\s)/g, "אַך");
+
+      const AVRI = [
+        ["+0Hz", "גובה מקורי — מה שמופעל כעת"],
+        ["-15Hz", "מעט יותר עמוק"],
+        ["-30Hz", "עמוק מאוד"],
+        ["+15Hz", "מעט יותר גבוה"],
       ];
 
-      const rows = document.getElementById("rows");
+      const OTHERS = [
+        ["andrew", "אנדרו — אמריקאי, רגוע"],
+        ["brian", "בריאן — אמריקאי, בהיר"],
+        ["william", "וויליאם — אוסטרלי"],
+        ["remy", "רמי — צרפתי"],
+        ["florian", "פלוריאן — גרמני"],
+        ["giuseppe", "ג׳וזפה — איטלקי"],
+      ];
 
-      for (const [word, tag] of candidates) {
-        const row = document.createElement("div");
-        row.className = "row";
+      const note = document.getElementById("note");
+      document.getElementById("sample").textContent = SAMPLE_SPEECH;
 
-        const wordEl = document.createElement("span");
-        wordEl.className = "word";
-        wordEl.textContent = word;
-
-        const tagEl = document.createElement("span");
-        tagEl.className = "tag";
-        tagEl.textContent = tag;
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = "▶ השמע";
-        btn.addEventListener("click", async () => {
-          btn.disabled = true;
-          btn.textContent = "טוען...";
-          try {
-            const response = await fetch("/api/speech", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: word }),
-            });
-            if (!response.ok) throw new Error("speech failed");
-            const url = URL.createObjectURL(await response.blob());
-            await new Audio(url).play();
-            btn.textContent = "▶ השמע שוב";
-          } catch (error) {
-            btn.textContent = "שגיאה";
-          } finally {
-            btn.disabled = false;
-          }
-        });
-
-        row.append(wordEl, tagEl, btn);
-        rows.appendChild(row);
+      async function play(voice, pitch, text = SAMPLE_SPEECH) {
+        note.textContent = "";
+        try {
+          const response = await fetch("/api/speech", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, voice, pitch }),
+          });
+          if (!response.ok) throw new Error(await response.text());
+          const url = URL.createObjectURL(await response.blob());
+          await new Audio(url).play();
+        } catch (error) {
+          note.textContent = `לא ניתן להשמיע: ${error.message}`;
+        }
       }
+
+      function addRow(container, name, label, voice, pitch) {
+        const row = document.createElement("div");
+        const title = document.createElement("span");
+        const tag = document.createElement("span");
+        const button = document.createElement("button");
+        row.className = "row";
+        title.className = "name";
+        tag.className = "tag";
+        title.textContent = name;
+        tag.textContent = label;
+        button.type = "button";
+        button.textContent = "השמע";
+        button.addEventListener("click", () => play(voice, pitch));
+        row.append(title, tag, button);
+        container.append(row);
+      }
+
+      const avriBox = document.getElementById("avri");
+      AVRI.forEach(([pitch, label]) => addRow(avriBox, `אַברי ${pitch}`, label, "avri", pitch));
+
+      const othersBox = document.getElementById("others");
+      OTHERS.forEach(([voice, label]) => addRow(othersBox, voice, label, voice, "+0Hz"));
+
+      // Spelling candidates for a shva na, which the voices swallow. They are
+      // read with the default voice so the trial matches the app.
+      const VARIANTS = [
+        ["הַלְלוּ", "הכתיב המקורי — שווא נע"],
+        ["הַלֶלוּ", "סגול במקום השווא"],
+        ["הַלֵלוּ", "צירה במקום השווא"],
+        ["הללו", "ללא ניקוד כלל"],
+        ["הַלְּלוּ", "עם דגש בלמד"],
+      ];
+
+      const wordInput = document.getElementById("word");
+      document
+        .getElementById("word-play")
+        .addEventListener("click", () => play("avri", "+0Hz", wordInput.value));
+
+      const variantsBox = document.getElementById("variants");
+      VARIANTS.forEach(([spelling, label]) => {
+        const row = document.createElement("div");
+        const title = document.createElement("span");
+        const tag = document.createElement("span");
+        const button = document.createElement("button");
+        row.className = "row";
+        title.className = "name";
+        tag.className = "tag";
+        title.textContent = spelling;
+        tag.textContent = label;
+        button.type = "button";
+        button.textContent = "השמע";
+        button.addEventListener("click", () => {
+          wordInput.value = spelling;
+          play("avri", "+0Hz", spelling);
+        });
+        row.append(title, tag, button);
+        variantsBox.append(row);
+      });
     </script>
   </body>
 </html>

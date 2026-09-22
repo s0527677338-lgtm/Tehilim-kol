@@ -1,6 +1,6 @@
 # תהילים
 
-Hebrew Tehilim reader. Audio is generated with gTTS, so it must run as a website (Python server), not as a copied HTML folder.
+Hebrew Tehilim reader. Audio is generated on the server, so it must run as a website (Python server), not as a copied HTML folder.
 
 ## Give this to a friend (phone)
 
@@ -29,3 +29,10 @@ python server.py
 ```
 
 Open http://localhost:8080
+
+## Reading voice
+
+The reader uses the male Hebrew voice `he-IL-AvriNeural` (Microsoft Edge TTS). Set the
+`HEBREW_VOICE` environment variable to change it, for example `he-IL-HilaNeural` for the
+female voice. If that service cannot be reached, the server falls back to gTTS, which
+offers only a female Hebrew voice.

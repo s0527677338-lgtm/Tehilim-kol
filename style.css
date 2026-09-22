@@ -29,6 +29,35 @@ body {
   direction: rtl;
 }
 
+.language-picker {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: 14px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid rgba(27, 94, 158, 0.28);
+  border-radius: 12px;
+  background: rgba(244, 251, 255, 0.95);
+  box-shadow: 0 6px 18px rgba(16, 41, 77, 0.14);
+}
+
+.language-picker label {
+  margin: 0;
+  font-size: 16px;
+}
+
+.language-picker select {
+  font: inherit;
+  color: var(--ink);
+  border: 1px solid rgba(27, 94, 158, 0.45);
+  border-radius: 8px;
+  background: #fff;
+  padding: 4px 6px;
+}
+
 .page {
   max-width: 760px;
   margin: 0 auto;
@@ -128,6 +157,7 @@ button.secondary {
 
 .chapter-title {
   text-align: center;
+  direction: rtl;
   font-size: 30px;
   margin: 0 0 18px;
   color: var(--blue);
@@ -136,14 +166,28 @@ button.secondary {
 .verses {
   display: grid;
   gap: 0;
+  direction: rtl;
+  text-align: right;
 }
 
 .verse {
+  /* The number and the verse text are separate columns, so the wrapped lines
+     line up under the start of the text instead of under the number. */
+  display: flex;
+  align-items: baseline;
   padding: 0 10px;
   border-radius: 6px;
-  line-height: 0.3;
+  /* Spacing between the wrapped lines inside one verse. Below about 0.6 the
+     lines overlap, because the line box becomes shorter than the letters. */
+  line-height: 1.4;
   font-size: 22px;
   transition: background 0.2s ease;
+}
+
+/* Pulls consecutive verses closer together without touching the line spacing
+   inside them. */
+.verse + .verse {
+  margin-top: -0.22em;
 }
 
 .verse.active {
@@ -153,7 +197,7 @@ button.secondary {
 }
 
 .verse-num {
-  display: inline-block;
+  flex: 0 0 auto;
   min-width: 1.8em;
   margin-left: 8px;
   color: var(--blue-bright);
@@ -199,6 +243,13 @@ button.secondary {
   box-shadow: 0 10px 26px rgba(16, 41, 77, 0.25);
 }
 
+.floating-speed {
+  background: #f4fbff;
+  color: var(--blue);
+  border: 1px solid rgba(27, 94, 158, 0.45);
+  box-shadow: 0 10px 26px rgba(16, 41, 77, 0.2);
+}
+
 @supports (bottom: env(safe-area-inset-bottom)) {
   .floating-controls {
     bottom: calc(24px + env(safe-area-inset-bottom));
@@ -226,6 +277,31 @@ button.secondary {
   display: none;
 }
 
+.creator-credit {
+  position: fixed;
+  right: 12px;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 40;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(244, 251, 255, 0.88);
+  color: var(--ink-soft);
+  font-size: 13px;
+  direction: rtl;
+}
+
 .hidden {
   display: none;
+}
+
+@media (max-width: 560px) {
+  .language-picker {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+
+  .page {
+    padding-top: 82px;
+  }
 }

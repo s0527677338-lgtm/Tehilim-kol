@@ -1,4 +1,4 @@
-const CACHE_NAME = "tehilim-v1";
+const CACHE_NAME = "tehilim-v4";
 const PRECACHE = [
   "/",
   "/index.html",

@@ -15,28 +15,38 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <div class="language-picker">
+      <label id="language-label" for="language-select">שפה</label>
+      <select id="language-select" aria-labelledby="language-label">
+        <option value="he">עברית</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+      </select>
+    </div>
+
     <main class="page">
       <header>
         <div class="ornament">✦ ✦ ✦</div>
-        <h1>תהילים</h1>
-        <p class="subtitle">הקראת תהילים בעברית — אפשר להתקין למסך הבית בטלפון</p>
+        <h1 id="app-title">תהילים</h1>
+        <p id="subtitle" class="subtitle">הקראת תהילים בעברית — אפשר להתקין למסך הבית בטלפון</p>
       </header>
 
       <section class="card">
-        <label for="chapter-input">מאיזה תהילים להתחיל?</label>
+        <label id="chapter-label" for="chapter-input">מאיזה תהילים להתחיל?</label>
         <input
           id="chapter-input"
           type="text"
           inputmode="text"
           autocomplete="off"
           spellcheck="false"
-          placeholder="לדוגמה: יח"
+          placeholder="לדוגמה: יח או 18"
         />
         <p id="error" class="error" aria-live="polite"></p>
         <div class="actions">
           <button id="start-btn" type="button" disabled>התחל להקריא</button>
           <button id="stop-btn" class="secondary" type="button" disabled>עצור</button>
           <button id="change-btn" class="secondary" type="button" disabled>החלף פרק</button>
+          <button id="speed-btn" class="secondary" type="button">החלף למהיר יותר</button>
         </div>
         <p id="voice-note" class="note" aria-live="polite"></p>
         <p id="install-note" class="note hidden"></p>
@@ -44,16 +54,19 @@
       </section>
 
       <section id="chapter-display" class="card hidden">
-        <h2 id="chapter-title" class="chapter-title"></h2>
+        <h2 id="chapter-title" class="chapter-title">פרק</h2>
         <div id="verses" class="verses"></div>
         <p id="status" class="status"></p>
       </section>
     </main>
 
+    <footer id="creator-credit" class="creator-credit">הוכן ע"י שרה גבאי 0527677338</footer>
+
     <div id="floating-controls" class="floating-controls hidden">
       <button id="floating-stop-btn" class="floating-stop" type="button">■ עצור</button>
       <button id="floating-back-btn" class="floating-back" type="button">◀ חזור פסוק אחורה</button>
       <button id="floating-change-btn" class="floating-change" type="button">החלף פרק</button>
+      <button id="floating-speed-btn" class="floating-speed" type="button">החלף למהיר יותר</button>
     </div>
 
     <script type="application/json" id="tehilim-data">
