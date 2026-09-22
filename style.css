@@ -69,10 +69,33 @@ header {
   margin-bottom: 28px;
 }
 
-.ornament {
-  color: var(--blue);
-  letter-spacing: 0.4em;
-  font-size: 14px;
+/* The header picture reaches the screen edges by cancelling the padding of
+   .page, and is cropped rather than stretched so it keeps its proportions on
+   any screen width. The crop favours the upper part, where the crown is. */
+.banner {
+  display: block;
+  width: calc(100% + 40px);
+  margin: -32px -20px 14px;
+  max-height: 210px;
+  object-fit: cover;
+  object-position: center 28%;
+  /* Fade the top and bottom edges into the page background, so the picture
+     melts into the blue instead of ending in a straight cut. The mask turns
+     those strips transparent while the middle stays fully opaque. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 16%,
+    #000 66%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 16%,
+    #000 66%,
+    transparent 100%
+  );
 }
 
 h1 {

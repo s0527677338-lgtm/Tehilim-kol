@@ -113,6 +113,12 @@ const ELOHIM_READING = "אֱלֹהִים";
 // The dot in ו is kept because there it is a shuruk vowel ("u"), not a dagesh,
 // and removing it would turn a word such as וּבְדֶרֶךְ into "vevderech".
 const DAGESH_KEEPERS = /[בכךפףו]/;
+// The qamats in כָּל is a qamats qatan, so the word is read "kol", but the
+// voices read that spelling as "kal". Respelling it with a vav is read
+// correctly. A maqaf has already become a space by then, so the forms written
+// כָּל־ are covered as well, and כֹּל is included since it is read the same.
+const STANDALONE_KOL = /(^|\s)כ[\u05B0-\u05BC\u05C1\u05C2\u05C7]*ל(?=$|\s)/g;
+const KOL_READING = "כּוֹל";
 // Other marks (a shin dot, or a vowel when the text is in canonical order) can
 // sit between the letter and its dagesh, so they are matched and kept as-is.
 const LETTER_WITH_DAGESH = /([\u05D0-\u05EA])([\u0591-\u05BB\u05BD-\u05C7]*)\u05BC/g;
@@ -501,6 +507,7 @@ function prepareForSpeech(text) {
   );
   return dropRedundantDagesh(replaceElohimPointedName(plain))
     .replace(DIVINE_NAME, DIVINE_NAME_READING)
+    .replace(STANDALONE_KOL, `$1${KOL_READING}`)
     // A word-final patah under ח is a furtive patah, pronounced "ach" with the
     // vowel before the letter ("ruach"), never "ha". Respelling the ending as
     // אַך is what the voices read correctly: the patah sits on the א and the

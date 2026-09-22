@@ -1,9 +1,10 @@
-const CACHE_NAME = "tehilim-v4";
+const CACHE_NAME = "tehilim-v5";
 const PRECACHE = [
   "/",
   "/index.html",
   "/style.css",
   "/app.js",
+  "/header.jpg",
   "/manifest.webmanifest",
   "/icon-192.png",
   "/icon-512.png",
