@@ -9,7 +9,7 @@ A phone cannot run `python server.py`. Your friend gets a **link**, then adds it
 1. Deploy this GitHub repo to [Render](https://render.com):
    - New → Web Service → `s0527677338-lgtm/Tehilim-kol`
    - Build: `pip install -r requirements.txt`
-   - Start: `gunicorn server:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1`
+   - Start: `gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1`
 2. Copy the HTTPS URL, for example `https://tehilim-kol.onrender.com`
 3. Send her that URL (WhatsApp).
 4. She opens it in **Chrome** (Android) or **Safari** (iPhone):
